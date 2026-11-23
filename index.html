@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cell Tower Defense</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="stage">
+    <div id="topbar">
+      <div id="logo">Cell Tower Defense</div>
+      <div class="stat" title="Waves survived">Wave <b id="wave">0</b></div>
+      <div class="stat atp" title="ATP: the energy you spend on immune cells">ATP <b id="atp">0</b></div>
+      <div class="stat health" title="Body Health: lost when viruses reach the vital organs">
+        Body Health
+        <span class="bar"><span id="health-fill"></span></span>
+        <b id="health">100</b>
+      </div>
+      <div id="top-buttons">
+        <button id="btn-speed" title="Game speed">Speed 1x</button>
+        <button id="btn-pause">Pause</button>
+        <button id="btn-sound">Sound on</button>
+        <button id="btn-book">Encyclopedia</button>
+        <button id="btn-menu">Menu</button>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="field"><canvas id="canvas"></canvas></div>
+
+      <div id="side">
+        <div id="shop">
+          <h3>Innate cells <span>ready from the start</span></h3>
+          <div class="grid" id="shop-innate"></div>
+          <h3>Adaptive cells <span>need the chain</span></h3>
+          <div class="grid" id="shop-adaptive"></div>
+          <h3>Clinic</h3>
+          <div class="grid three" id="clinic"></div>
+          <div id="info"></div>
+        </div>
+        <div id="select" class="hidden"></div>
+        <button id="btn-start">Start Wave 1</button>
+      </div>
+    </div>
+
+    <div id="modal" class="hidden"><div id="modal-card"></div></div>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/data/enemies.js"></script>
+  <script src="js/data/towers.js"></script>
+  <script src="js/data/waves.js"></script>
+  <script src="js/data/text.js"></script>
+  <script src="js/sim/path.js"></script>
+  <script src="js/sim/enemies.js"></script>
+  <script src="js/sim/towers.js"></script>
+  <script src="js/sim/adaptive.js"></script>
+  <script src="js/sim/game.js"></script>
+  <script src="js/render/draw.js"></script>
+  <script src="js/ui/sound.js"></script>
+  <script src="js/ui/modals.js"></script>
+  <script src="js/ui/hud.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
