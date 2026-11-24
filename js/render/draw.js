@@ -16,11 +16,24 @@
   var effects = [];
   var banners = [];
   var feverT = 0;
+  var shakeT = 0, shakeAmp = 0;
+
+  // On a phone the playfield is shown at about half size, so text drawn on it is
+  // scaled up (main.js sets this) to stay readable.
+  var textScale = 1;
+  var mapPath = null;
 
   function font(px, bold) {
-    return (bold === false ? '' : 'bold ') + px + 'px ' + CTD.FONT;
+    return (bold === false ? '' : 'bold ') + Math.round(px * textScale * 10) / 10 + 'px ' + CTD.FONT;
   }
   Draw.font = font;
+
+  Draw.setTextScale = function (v) {
+    v = Math.round(v * 20) / 20;
+    if (v === textScale) return;
+    textScale = v;
+    if (mapPath) Draw.buildMap(mapPath); // the map has labels baked in
+  };
 
   // ---------------------------------------------------------------- shapes
 
@@ -72,10 +85,14 @@
 
   function mouth(ctx, x, y, r, kind) {
     ctx.beginPath();
-    if (kind === 'open') {
-      ctx.ellipse(x, y + r * 0.42, r * 0.3, r * 0.26, 0, 0, TAU);
+    if (kind === 'open' || kind === 'wide') {
+      var big = kind === 'wide' ? 1.5 : 1;
+      ctx.ellipse(x, y + r * 0.42, r * 0.3 * big, r * 0.26 * big, 0, 0, TAU);
       ctx.fillStyle = '#7a1f1f';
       ctx.fill();
+    } else if (kind === 'flat') {
+      ctx.moveTo(x - r * 0.3, y + r * 0.45);
+      ctx.lineTo(x + r * 0.3, y + r * 0.45);
     } else if (kind === 'frown') {
       ctx.arc(x, y + r * 0.62, r * 0.28, Math.PI * 1.15, Math.PI * 1.85);
     } else {
@@ -118,16 +135,192 @@
     }
   }
 
-  function neutrophilBody(ctx, x, y, r) {
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, TAU);
-    paint(ctx, COLORS.neutrophil, 2);
-    ctx.fillStyle = '#7b5bb5';
-    for (var i = 0; i < 3; i++) {
+  function mixColor(a, b, k) {
+    var out = '#';
+    for (var i = 1; i < 7; i += 2) {
+      var v = Math.round(parseInt(a.substr(i, 2), 16) * (1 - k) + parseInt(b.substr(i, 2), 16) * k);
+      out += (v < 16 ? '0' : '') + v.toString(16);
+    }
+    return out;
+  }
+
+  // The neutrophil: a little round cell on legs. (x, y) is where it stands; b is body radius.
+  // o.state: 'idle' waiting at its post | 'windup' revving up | 'run' charging |
+  //          'fuse' clinging on and swelling (o.k = 0..1) | 'return' trudging home
+  function neutrophilGuy(ctx, x, y, b, o) {
+    var state = o.state || 'idle', age = o.age || 0, time = o.time || 0;
+    var dir = o.dir || 0;
+    var face = Math.cos(dir) >= 0 ? 1 : -1;
+    var k = state === 'fuse' ? CTD.clamp(o.k || 0, 0, 1) : 0;
+    var size = b * (1 + 1.9 * Math.pow(k, 0.8));
+    var squash = state === 'windup' ? 0.8 : 1;
+    var bounce = state === 'run' ? Math.abs(Math.sin(age * 24)) * b * 0.4
+      : state === 'return' ? Math.abs(Math.sin(age * 9)) * b * 0.12
+        : state === 'idle' ? Math.sin(time * 3) * b * 0.05 : 0;
+    var jx = k ? Math.sin(time * 97) * (0.6 + 2.6 * k) : state === 'windup' ? Math.sin(time * 80) * 1.2 : 0;
+    var jy = k ? Math.cos(time * 83) * (0.6 + 2.6 * k) : 0;
+    var lean = state === 'run' ? face * size * 0.18 : state === 'windup' ? -face * size * 0.12 : 0;
+    var cx = x + jx, cy = y - b * 0.35 - bounce + jy + (1 - squash) * b * 0.7;
+    var footY = y + b * 0.95, hipY = cy + size * squash * 0.8;
+    var i, a;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = INK;
+
+    // legs
+    ctx.lineWidth = 2.2;
+    if (state === 'run' || state === 'windup') {
+      // cartoon leg-wheel
+      ctx.save();
+      ctx.globalAlpha *= 0.25;
       ctx.beginPath();
-      ctx.arc(x + (i - 1) * r * 0.42, y + (i === 1 ? -r * 0.22 : r * 0.12), r * 0.3, 0, TAU);
+      ctx.arc(cx, hipY + b * 0.25, b * 0.75, 0, TAU);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+      for (i = 0; i < 4; i++) {
+        a = age * 40 * face + (i / 4) * TAU;
+        var lx = cx + Math.cos(a) * b * 0.8, ly = hipY + b * 0.25 + Math.sin(a) * b * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(cx, hipY - b * 0.1);
+        ctx.lineTo(lx, ly);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(lx + face * 1.5, ly, 2.6, 1.6, 0, 0, TAU);
+        ctx.fill();
+      }
+    } else if (state === 'fuse') {
+      for (i = -1; i <= 1; i += 2) {
+        a = Math.PI / 2 + i * 0.7 + Math.sin(time * 40 + i) * 0.25;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * size * 0.95, cy + Math.sin(a) * size * 0.95);
+        ctx.lineTo(cx + Math.cos(a) * (size + b * 0.55), cy + Math.sin(a) * (size + b * 0.55));
+        ctx.stroke();
+      }
+    } else {
+      var swing = state === 'return' ? Math.sin(age * 9) * b * 0.45 : 0;
+      for (i = -1; i <= 1; i += 2) {
+        var fx = cx + i * b * 0.4 + i * swing * face;
+        ctx.beginPath();
+        ctx.moveTo(cx + i * b * 0.35, hipY - b * 0.1);
+        ctx.lineTo(fx, footY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(fx + face * 1.5, footY, 2.8, 1.7, 0, 0, TAU);
+        ctx.fill();
+      }
+    }
+
+    // arms
+    ctx.lineWidth = 2;
+    for (i = -1; i <= 1; i += 2) {
+      var sx = cx + i * size * 0.92, sy = cy + size * 0.05;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      if (state === 'run') {
+        ctx.lineTo(cx + i * size * 0.95 + Math.sin(age * 30 + i) * b * 0.35, cy - size * 1.75);
+      } else if (state === 'windup') {
+        ctx.lineTo(sx - face * b * 0.8, sy + b * 0.45);
+      } else if (state === 'fuse') {
+        ctx.lineTo(sx + i * b * 0.6, sy + Math.sin(time * 45 + i) * b * 0.3);
+      } else if (state === 'return') {
+        ctx.lineTo(sx + i * b * 0.1, sy + b * 0.8);
+      } else {
+        // hands on hips
+        ctx.lineTo(sx + i * b * 0.45, sy + b * 0.3);
+        ctx.lineTo(sx - i * b * 0.05, sy + b * 0.6);
+      }
+      ctx.stroke();
+    }
+
+    // body: turns red and flashes as it swells
+    var color = COLORS.neutrophil;
+    if (k) {
+      color = mixColor(COLORS.neutrophil, '#ff5b4d', Math.min(1, k * 1.2));
+      if (k > 0.25 && Math.sin(k * k * 70) > 0.35) color = '#fff3ef';
+    }
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, size * (2 - squash), size * squash, 0, 0, TAU);
+    paint(ctx, color, 2.4);
+
+    // its lobed nucleus, worn like a hairdo
+    ctx.fillStyle = '#7b5bb5';
+    for (i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.arc(cx + lean * 0.5 + i * size * 0.36, cy - size * squash * (i === 0 ? 0.62 : 0.5), size * 0.2, 0, TAU);
       ctx.fill();
     }
+
+    // face
+    var er = size * (state === 'fuse' ? 0.3 : state === 'run' ? 0.27 : 0.23);
+    var pr = er * (state === 'fuse' ? 0.22 : state === 'run' ? 0.34 : 0.48);
+    var ey = cy + size * 0.02;
+    for (i = -1; i <= 1; i += 2) {
+      var ex = cx + lean + i * size * 0.34;
+      ctx.beginPath();
+      ctx.arc(ex, ey, er, 0, TAU);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = INK;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(ex + Math.cos(dir) * er * 0.35, ey + Math.sin(dir) * er * 0.35, pr, 0, TAU);
+      ctx.fillStyle = INK;
+      ctx.fill();
+      // eyebrows: determined, or droopy on the walk home
+      var slant = state === 'return' ? -1 : 1;
+      ctx.beginPath();
+      ctx.moveTo(ex + i * er * 1.1, ey - er * (1.25 + 0.25 * slant));
+      ctx.lineTo(ex - i * er * 0.8, ey - er * (1.25 - 0.4 * slant));
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+    }
+    var mx = cx + lean, my = cy + size * 0.5;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    if (state === 'run') {
+      ctx.ellipse(mx, my, size * 0.26, size * 0.3, 0, 0, TAU);
+      ctx.fillStyle = '#7a1f1f';
+      ctx.fill();
+      ctx.stroke();
+    } else if (state === 'fuse') {
+      ctx.arc(mx, my, size * 0.08, 0, TAU);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255, 120, 150, 0.7)';
+      for (i = -1; i <= 1; i += 2) {
+        ctx.beginPath();
+        ctx.arc(mx + i * size * 0.5, my - size * 0.08, size * 0.17, 0, TAU);
+        ctx.fill();
+      }
+    } else if (state === 'return') {
+      ctx.arc(mx, my + size * 0.25, size * 0.24, Math.PI * 1.2, Math.PI * 1.8);
+      ctx.stroke();
+    } else if (state === 'windup') {
+      ctx.moveTo(mx - size * 0.28, my);
+      ctx.lineTo(mx + size * 0.28, my);
+      ctx.stroke();
+    } else {
+      ctx.arc(mx, my - size * 0.18, size * 0.28, Math.PI * 0.2, Math.PI * 0.8);
+      ctx.stroke();
+    }
+
+    // sweat flying off as it swells
+    if (k) {
+      ctx.fillStyle = '#7fd0ff';
+      for (i = 0; i < 5; i++) {
+        var q = (time * 2.2 + i * 0.2) % 1;
+        a = i * 1.26 - 2.5;
+        ctx.globalAlpha = 1 - q;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * size * (1.15 + q * 0.9), cy + Math.sin(a) * size * (1.15 + q * 0.9), 2, 0, TAU);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
   }
 
   // ---------------------------------------------------------------- defenders
@@ -139,28 +332,26 @@
     ctx.save();
     if (o.dim) ctx.globalAlpha *= 0.55;
     if (type === 'macrophage') {
+      // o.eat: the lunge in progress. It stretches toward its prey, then wobbles as it chews.
+      var eat = o.eat, face = 'smile';
+      if (eat) {
+        var out = eat.phase === 'out';
+        var p = Math.min(1, eat.t / (out ? eat.out : eat.back));
+        var ang = Math.abs(eat.cx) + Math.abs(eat.cy) > 1 ? Math.atan2(eat.cy, eat.cx) : aim;
+        var s = out ? 0.08 + 0.2 * Math.sin(p * Math.PI) : eat.ate ? 0.16 * (1 - p) * Math.cos(p * 20) : 0;
+        ctx.translate(x, y);
+        ctx.rotate(ang);
+        ctx.scale(1 + s, 1 - s * 0.4);
+        ctx.rotate(-ang);
+        ctx.translate(-x, -y);
+        face = out ? 'wide' : !eat.ate ? 'smile' : Math.sin(p * 26) > 0 ? 'flat' : 'open';
+      }
       blob(ctx, x, y, r, 5, 0.11, t * 1.6);
       paint(ctx, COLORS.macrophage);
       eyes(ctx, x, y, r, aim);
-      mouth(ctx, x, y, r, o.flash > 0 ? 'open' : 'smile');
+      mouth(ctx, x, y, r, face);
     } else if (type === 'neutrophil') {
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, TAU);
-      paint(ctx, '#f6dbe6');
-      ctx.beginPath();
-      ctx.arc(x, y, r * 0.72, 0, TAU);
-      ctx.setLineDash([3, 3]);
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#b9869e';
-      ctx.stroke();
-      ctx.setLineDash([]);
-      var squad = o.squad || 1, ready = o.ready === undefined ? squad : o.ready;
-      for (var i = 0; i < squad; i++) {
-        var a = squad === 1 ? 0 : (i / squad) * TAU - Math.PI / 2;
-        var d = squad === 1 ? 0 : r * 0.42;
-        var nx = x + Math.cos(a) * d, ny = y + Math.sin(a) * d;
-        if (i < ready) neutrophilBody(ctx, nx, ny, squad === 1 ? r * 0.5 : r * 0.34);
-      }
+      neutrophilGuy(ctx, x, y + r * 0.12, r * 0.72, { state: 'idle', time: t, dir: aim });
     } else if (type === 'nk') {
       ctx.beginPath();
       ctx.arc(x, y, r, 0, TAU);
@@ -453,6 +644,7 @@
 
   Draw.buildMap = function (path) {
     var k = 2;
+    mapPath = path;
     mapCanvas = document.createElement('canvas');
     mapCanvas.width = CTD.W * k;
     mapCanvas.height = CTD.H * k;
@@ -534,7 +726,10 @@
 
   Draw.fever = function () { feverT = 0.7; };
 
-  Draw.clearFx = function () { effects.length = 0; banners.length = 0; feverT = 0; };
+  // Shake the whole playfield for a moment (big explosions).
+  Draw.shake = function (amount) { shakeT = 0.4; shakeAmp = Math.max(shakeAmp, amount); };
+
+  Draw.clearFx = function () { effects.length = 0; banners.length = 0; feverT = 0; shakeT = 0; shakeAmp = 0; };
 
   function outlined(ctx, text, x, y, fill, lw) {
     ctx.lineWidth = lw || 4;
@@ -556,16 +751,83 @@
         ctx.globalAlpha = Math.min(1, f * 2);
         ctx.font = font(e.size);
         ctx.textAlign = 'center';
-        outlined(ctx, e.text, e.x, e.y - p * 26, e.color, 3.5);
+        // keep the whole word on the playfield, even right at the edge
+        var half = ctx.measureText(e.text).width / 2 + 5;
+        var tx = half * 2 >= CTD.W ? CTD.W / 2 : Math.max(half, Math.min(CTD.W - half, e.x));
+        outlined(ctx, e.text, tx, Math.max(14 * textScale, e.y - p * 26), e.color, 3.5);
       } else if (e.kind === 'pop') {
         ctx.globalAlpha = f;
         ctx.fillStyle = e.color;
-        for (j = 0; j < 6; j++) {
-          a = j * 1.05 + e.x;
+        var count = e.n || 6, spread = e.spread || 16, dot = e.size || 2.6;
+        for (j = 0; j < count; j++) {
+          a = j * (TAU / count) * 1.003 + e.x;
+          var fly = spread * (0.55 + 0.45 * ((j * 7) % 5) / 4) * (1 - f * f);
           ctx.beginPath();
-          ctx.arc(e.x + Math.cos(a) * p * 16, e.y + Math.sin(a) * p * 16, 2.6 * f + 0.5, 0, TAU);
+          ctx.arc(e.x + Math.cos(a) * fly, e.y + Math.sin(a) * fly, dot * f + 0.5, 0, TAU);
           ctx.fill();
         }
+      } else if (e.kind === 'puff') {
+        ctx.globalAlpha = f * 0.7;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y - p * 4, 2 + p * 5, 0, TAU);
+        ctx.fillStyle = '#fff6ee';
+        ctx.fill();
+      } else if (e.kind === 'flash') {
+        ctx.globalAlpha = f * 0.9;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r * (0.45 + 0.75 * p), 0, TAU);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+      } else if (e.kind === 'strands') {
+        // strings of DNA flung outward
+        ctx.globalAlpha = f;
+        ctx.strokeStyle = '#a58be0';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        for (j = 0; j < 9; j++) {
+          a = j * (TAU / 9) + e.x;
+          var c = Math.cos(a), s = Math.sin(a);
+          var r1 = e.r * (0.15 + 0.6 * (1 - f * f));
+          ctx.beginPath();
+          for (var q = 0; q <= 6; q++) {
+            var rr2 = r1 + (q / 6) * e.r * 0.4;
+            var wig = Math.sin(q * 1.6 + j) * 5;
+            var px = e.x + c * rr2 - s * wig, py = e.y + s * rr2 + c * wig;
+            if (q === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.stroke();
+        }
+      } else if (e.kind === 'ghost') {
+        // the spent neutrophil floats off
+        var gx = e.x + Math.sin(p * 9) * 7, gy = e.y - 10 - p * 70;
+        ctx.globalAlpha = Math.min(1, f * 2.5) * Math.min(1, p * 6) * 0.85;
+        ctx.fillStyle = '#ffffff';
+        for (j = -1; j <= 1; j += 2) {
+          ctx.beginPath();
+          ctx.ellipse(gx + j * 11, gy - 1 + Math.sin(p * 40) * 2, 6, 3.5, j * -0.5, 0, TAU);
+          ctx.fill();
+          ctx.lineWidth = 1.2;
+          ctx.strokeStyle = INK;
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(gx, gy, 8, 0, TAU);
+        paint(ctx, '#eef8ff', 1.8);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = INK;
+        for (j = -1; j <= 1; j += 2) {
+          ctx.beginPath();
+          ctx.arc(gx + j * 3, gy - 1, 1.8, Math.PI * 1.1, Math.PI * 1.9);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(gx, gy + 1.5, 2.6, Math.PI * 0.15, Math.PI * 0.85);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(gx, gy - 13, 7, 2.6, 0, 0, TAU);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#ffcf33';
+        ctx.stroke();
       } else if (e.kind === 'ring') {
         ctx.globalAlpha = f;
         ctx.beginPath();
@@ -574,10 +836,11 @@
         ctx.strokeStyle = e.color;
         ctx.stroke();
       } else if (e.kind === 'net') {
-        ctx.globalAlpha = f;
+        // the sticky net stays on the vessel for as long as it slows things down
+        ctx.globalAlpha = Math.min(1, f * 3) * 0.9;
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.6;
-        var rr = e.r * (0.4 + 0.6 * Math.min(1, p * 3));
+        ctx.lineWidth = 1.8;
+        var rr = e.r * Math.min(1, 0.3 + (e.max - e.life) * 6);
         for (j = 0; j < 10; j++) {
           a = j * (TAU / 10) + e.x;
           ctx.beginPath();
@@ -623,6 +886,7 @@
   }
 
   function drawBanners(ctx, dt) {
+    var y = 22 / textScale;
     for (var i = 0; i < banners.length; i++) {
       var b = banners[i];
       b.life -= dt;
@@ -631,7 +895,13 @@
       ctx.globalAlpha = Math.min(1, b.life * 2, (b.max - b.life) * 4);
       ctx.font = font(26);
       ctx.textAlign = 'center';
-      outlined(ctx, b.text, CTD.W / 2, 44 + i * 36, b.color, 6);
+      // long banners shrink to fit the playfield
+      var wide = ctx.measureText(b.text).width, px = 26;
+      if (wide > CTD.W - 30) { px = (26 * (CTD.W - 30)) / wide; ctx.font = font(px); }
+      // stack downward from the top edge, each line as tall as its own text
+      y += px * textScale * 0.85;
+      outlined(ctx, b.text, CTD.W / 2, y, b.color, 6);
+      y += px * textScale * 0.55;
       ctx.restore();
     }
     banners = banners.filter(function (b) { return b.life > 0; });
@@ -702,10 +972,7 @@
 
   function towerOpts(g, t, time) {
     var o = { t: time + t.id, aim: t.aim, flash: t.flash };
-    if (t.type === 'neutrophil') {
-      o.squad = t.squad.length;
-      o.ready = t.squad.filter(function (m) { return m.state === 'ready'; }).length;
-    }
+    if (t.type === 'macrophage') o.eat = t.eat;
     if (t.type === 'bcell') o.plasma = t.levels[3] > 0;
     return o;
   }
@@ -767,8 +1034,15 @@
   Draw.render = function (ctx, g, ui, dt, time) {
     var i, t, e;
     ctx.clearRect(0, 0, CTD.W, CTD.H);
+    ctx.save();
+    if (shakeT > 0) {
+      shakeT -= dt;
+      var sh = shakeAmp * Math.max(0, shakeT / 0.4);
+      ctx.translate(Math.sin(time * 95) * sh, Math.cos(time * 78) * sh);
+      if (shakeT <= 0) shakeAmp = 0;
+    }
     if (mapCanvas) ctx.drawImage(mapCanvas, 0, 0, CTD.W, CTD.H);
-    if (!g) return;
+    if (!g) { ctx.restore(); return; }
 
     // ranges of partner cells while placing something that needs a partner
     var placing = ui.placing;
@@ -810,11 +1084,62 @@
       var st = CTD.Adaptive.status(g, t);
       var o = towerOpts(g, t, time);
       o.dim = st && st.state === 'naive';
-      Draw.tower(ctx, t.type, t.x, t.y, t.r, o);
+      var tx = t.x, ty = t.y;
+      if (o.eat) {
+        // the macrophage has left home: it stays attached by a stretchy foot
+        tx += o.eat.cx;
+        ty += o.eat.cy;
+        if (Math.abs(o.eat.cx) + Math.abs(o.eat.cy) > 5) {
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(t.x, t.y);
+          ctx.lineTo(tx, ty);
+          ctx.strokeStyle = INK;
+          ctx.lineWidth = t.r * 0.42 + 5;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(t.x, t.y, t.r * 0.5, 0, TAU);
+          paint(ctx, COLORS.macrophage);
+          ctx.beginPath();
+          ctx.moveTo(t.x, t.y);
+          ctx.lineTo(tx, ty);
+          ctx.strokeStyle = COLORS.macrophage;
+          ctx.lineWidth = t.r * 0.42;
+          ctx.stroke();
+        }
+      }
+      Draw.tower(ctx, t.type, tx, ty, t.r, o);
       drawTowerExtras(ctx, g, t, time);
     }
 
-    for (i = 0; i < g.units.length; i++) neutrophilBody(ctx, g.units[i].x, g.units[i].y, 7);
+    // neutrophils on their one charge
+    for (i = 0; i < g.units.length; i++) {
+      var u = g.units[i], ub = u.tower.r * 0.72;
+      var swell = u.state === 'fuse' ? 1 - u.timer / u.s.fuse : 0;
+      if (u.state === 'fuse') {
+        // where the net is about to land
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(u.x, u.y, u.s.blast, 0, TAU);
+        ctx.fillStyle = 'rgba(255, 70, 60, ' + (0.08 + 0.14 * swell) + ')';
+        ctx.fill();
+        ctx.setLineDash([8, 6]);
+        ctx.lineDashOffset = -time * 60;
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(255, 70, 60, ' + (0.5 + 0.5 * swell) + ')';
+        ctx.stroke();
+        ctx.restore();
+      } else if (u.state !== 'return' && time - (u.puffT || 0) > 0.07) {
+        u.puffT = time;
+        effects.push({ kind: 'puff', x: u.x - Math.cos(u.dir) * 6, y: u.y + ub * 0.9, life: 0.35, max: 0.35 });
+      }
+      neutrophilGuy(ctx, u.x, u.y + (u.state === 'fuse' ? 0 : u.tower.r * 0.12), ub, { state: u.state, age: u.age, dir: u.dir, k: swell, time: time });
+      if (u.state === 'run') {
+        ctx.font = font(12);
+        ctx.textAlign = 'center';
+        outlined(ctx, 'AAAAH!', u.x + Math.sin(time * 60) * 1.5, u.y - ub * 2.6, '#fff27a', 3);
+      }
+    }
 
     drawEffects(ctx, dt);
 
@@ -841,12 +1166,14 @@
       }
     }
 
+    ctx.restore(); // end of screen shake
+
     // clinic effects
     if (g.serumT > 0 || g.artT > 0) {
       ctx.font = font(14);
       ctx.textAlign = 'left';
       var yy = CTD.H - 12;
-      if (g.serumT > 0) { outlined(ctx, 'Antibody serum: ' + Math.ceil(g.serumT) + 's', 10, yy, '#ffe08a', 4); yy -= 20; }
+      if (g.serumT > 0) { outlined(ctx, 'Antibody serum: ' + Math.ceil(g.serumT) + 's', 10, yy, '#ffe08a', 4); yy -= 20 * textScale; }
       if (g.artT > 0) outlined(ctx, 'HIV medicine: ' + Math.ceil(g.artT) + 's', 10, yy, '#ff9fc0', 4);
     }
 

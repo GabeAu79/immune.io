@@ -30,7 +30,13 @@
   var SOUNDS = {
     pop: function () { tone(620 + Math.random() * 240, 240, 0.07, 'triangle', 0.07); },
     gulp: function () { tone(210, 120, 0.09, 'sine', 0.06); },
-    net: function () { tone(160, 60, 0.22, 'sawtooth', 0.06); },
+    charge: function () { tone(320, 880, 0.45, 'sawtooth', 0.05); },
+    fuse: function () { tone(300, 1400, 0.62, 'square', 0.035); },
+    boom: function () {
+      tone(180, 35, 0.5, 'sawtooth', 0.16);
+      tone(90, 30, 0.6, 'square', 0.1);
+      tone(700, 120, 0.25, 'triangle', 0.08);
+    },
     zap: function () { tone(900, 300, 0.12, 'square', 0.04); },
     burst: function () { tone(140, 50, 0.3, 'sawtooth', 0.1); tone(400, 90, 0.2, 'square', 0.05); },
     clean: function () { tone(660, 0, 0.08, 'sine', 0.07); tone(990, 0, 0.12, 'sine', 0.07, 0.07); },

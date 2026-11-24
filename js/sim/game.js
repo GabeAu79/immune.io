@@ -23,7 +23,7 @@
       health: R.startHealth,
       towers: [],
       enemies: [],
-      units: [], // neutrophils in flight
+      units: [], // neutrophils on their one charge
       vaccine: {}, // antigen -> last wave number it protects
       serumT: 0, serumCd: 0, artT: 0, artCd: 0,
       seen: {}, // enemy types that have appeared
@@ -161,7 +161,6 @@
   function endWave(g) {
     var R = CTD.RULES;
     g.inWave = false;
-    g.units = [];
     var bonus = R.waveBonusBase + R.waveBonusPerWave * g.wave;
     g.atp += bonus;
     g.stats.atpEarned += bonus;

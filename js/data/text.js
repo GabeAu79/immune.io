@@ -16,8 +16,8 @@
       desc: 'Short range. Engulfs one virus at a time (phagocytosis). Collects antigen from what it eats and can slowly present it to helper T-cells.'
     },
     neutrophil: {
-      name: 'Neutrophil', short: 'Bursts into a net',
-      desc: 'Rushes out and bursts into a sticky net that damages and slows everything nearby, then a new one is sent. The net also tears open infected cells, so they burst.'
+      name: 'Neutrophil', short: 'One big burst',
+      desc: '<b>Single use, cheap.</b> Waits for enemies it recognises, charges the biggest group in range, and bursts into a sticky net that damages and slows everything nearby. Then it is gone: buy another. The net also tears open infected cells, so they burst.'
     },
     nk: {
       name: 'NK Cell', short: 'Kills infected cells',
@@ -48,12 +48,7 @@
       speed: { name: 'Fast Digestion', desc: 'Eats more often.' },
       present: { name: 'Antigen Display', desc: 'Collects more antigen per kill and presents it faster and further.' }
     },
-    neutrophil: {
-      damage: { name: 'Stronger Burst', desc: 'The net does more damage.' },
-      range: { name: 'Wider Net', desc: 'Bigger net and longer travel.' },
-      speed: { name: 'Bone Marrow Boost', desc: 'Replacement neutrophils arrive sooner.' },
-      squad: { name: 'Bigger Squad', desc: 'One more neutrophil on call.' }
-    },
+    neutrophil: {},
     nk: {
       damage: { name: 'Deadlier Granules', desc: 'More damage to infected cells.' },
       range: { name: 'Wider Patrol', desc: 'More range.' },
@@ -125,6 +120,9 @@
     locked: 'Unlocks at wave ',
     maxed: 'MAX',
     hintPlace: 'Click the tissue to place. Right-click or Esc to cancel.',
+    hintPlaceTouch: 'Tap the tissue to place. Tap the shop button again to cancel.',
+    hintIdleTouch: 'Pick a cell from the shop, then tap the tissue to place it. Tap a placed cell to upgrade it.',
+    singleUse: 'Single use: no upgrades. It bursts once and is gone.',
     hintIdle: 'Pick a cell from the shop, then click the tissue to place it. Click a placed cell to upgrade it.',
     fever: 'FEVER!',
     burst: 'BURST!',
@@ -146,7 +144,7 @@
       {
         title: 'Common virus',
         art: ['enemy', 'common'],
-        body: 'Its genetic material carries danger patterns called <b>PAMPs</b>. Your <b>innate</b> cells are born knowing these patterns, so they recognise it every time. Start with <b>macrophages</b> and <b>neutrophils</b>.'
+        body: 'Its genetic material carries danger patterns called <b>PAMPs</b>. Your <b>innate</b> cells are born knowing these patterns, so they recognise it every time. Start with <b>macrophages</b>. <b>Neutrophils</b> are cheap, single-use backup for when a crowd gets through.'
       },
       {
         title: 'Fever',
@@ -229,9 +227,9 @@
     },
     {
       group: 'Defenders', title: 'Neutrophil', art: ['tower', 'neutrophil'],
-      game: 'Travels to a group of enemies and bursts into a net that damages and slows everything in it, recognised or not. Then a replacement arrives. Its net tears infected cells open.',
+      game: 'Single use and cheap. It charges the biggest group of enemies it can recognise and bursts into a net that damages and slows everything in it, recognised or not. The net stays on the vessel for a few seconds. Then the neutrophil is gone and you buy another. Its net tears infected cells open. If its target disappears before it arrives, it walks home and waits again.',
       real: 'Neutrophils are the most common white blood cell. They live only hours to days, and bone marrow makes about 100 billion a day. One of their weapons is a NET: the cell throws out its own DNA as a sticky web covered in toxic proteins, and dies doing it.',
-      versus: 'Neutrophils are mainly bacteria and fungus fighters. They do help against viruses, but less than this game suggests. Their attacks also damage healthy tissue nearby, which the game does not charge you for.'
+      versus: 'Single use is true to life: a neutrophil that throws a NET dies doing it, and the body simply sends more. But neutrophils are mainly bacteria and fungus fighters. They do help against viruses, but less than this game suggests. Their attacks also damage healthy tissue nearby, which the game does not charge you for.'
     },
     {
       group: 'Defenders', title: 'NK Cell', art: ['tower', 'nk'],

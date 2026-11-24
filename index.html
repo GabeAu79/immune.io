@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#5b2a33">
   <title>Cell Tower Defense</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -13,7 +15,7 @@
       <div class="stat" title="Waves survived">Wave <b id="wave">0</b></div>
       <div class="stat atp" title="ATP: the energy you spend on immune cells">ATP <b id="atp">0</b></div>
       <div class="stat health" title="Body Health: lost when viruses reach the vital organs">
-        Body Health
+        <span><span class="wide">Body </span>Health</span>
         <span class="bar"><span id="health-fill"></span></span>
         <b id="health">100</b>
       </div>
@@ -21,7 +23,7 @@
         <button id="btn-speed" title="Game speed">Speed 1x</button>
         <button id="btn-pause">Pause</button>
         <button id="btn-sound">Sound on</button>
-        <button id="btn-book">Encyclopedia</button>
+        <button id="btn-book"><span class="wide">Encyclopedia</span><span class="narrow">Book</span></button>
         <button id="btn-menu">Menu</button>
       </div>
     </div>
@@ -31,12 +33,20 @@
 
       <div id="side">
         <div id="shop">
-          <h3>Innate cells <span>ready from the start</span></h3>
-          <div class="grid" id="shop-innate"></div>
-          <h3>Adaptive cells <span>need the chain</span></h3>
-          <div class="grid" id="shop-adaptive"></div>
-          <h3>Clinic</h3>
-          <div class="grid three" id="clinic"></div>
+          <div id="groups">
+            <div class="group innate">
+              <h3>Innate cells <span>ready from the start</span></h3>
+              <div class="grid" id="shop-innate"></div>
+            </div>
+            <div class="group adaptive">
+              <h3>Adaptive cells <span>need the chain</span></h3>
+              <div class="grid" id="shop-adaptive"></div>
+            </div>
+            <div class="group clinic">
+              <h3>Clinic</h3>
+              <div class="grid three" id="clinic"></div>
+            </div>
+          </div>
           <div id="info"></div>
         </div>
         <div id="select" class="hidden"></div>

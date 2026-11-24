@@ -46,14 +46,11 @@
       ]
     },
     neutrophil: {
-      arm: 'innate', cost: 150, radius: 17,
-      stats: { range: 115, damage: 9, blast: 44, respawn: 3.5, squad: 1, flySpeed: 240, slow: 0.5, slowTime: 2 },
-      upgrades: [
-        { key: 'damage', costs: [70, 120, 190], mul: { damage: [1.5, 2.2, 3.0] } },
-        { key: 'range', costs: [60, 100, 160], mul: { blast: [1.2, 1.4, 1.6], range: [1.1, 1.2, 1.3] } },
-        { key: 'speed', costs: [70, 120, 190], mul: { respawn: [0.75, 0.55, 0.4] } },
-        { key: 'squad', costs: [150, 260], add: { squad: [1, 2] } }
-      ]
+      // Single use: it charges once, bursts into a net, and is gone. Cheap, no upgrades.
+      // windup / fuse are the seconds it spends revving up and swelling before the burst.
+      arm: 'innate', cost: 40, radius: 13, consumable: true,
+      stats: { range: 115, damage: 30, blast: 62, flySpeed: 260, windup: 0.4, fuse: 0.65, slow: 0.45, slowTime: 3 },
+      upgrades: []
     },
     nk: {
       arm: 'innate', cost: 180, radius: 16,

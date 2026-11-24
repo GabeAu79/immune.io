@@ -130,12 +130,12 @@
     var el = $('info'), html, sig;
     if (info.mode === 'tower') {
       var type = info.key, def = CTD.TOWERS[type], tx = T.towers[type];
-      sig = 'tower' + type + CTD.Game.unlocked(g, type);
+      sig = 'tower' + type + CTD.Game.unlocked(g, type) + !!ui.placing + ui.touch;
       if (sig === info.sig) return;
       html = '<div class="title">' + tx.name + '<span class="tag ' + def.arm + '">' + T.arm[def.arm] + '</span></div>' +
         '<div>' + tx.desc + '</div>' +
         (CTD.Game.unlocked(g, type) ? '' : '<div class="hint"><b>' + T.ui.locked + R.adaptiveUnlockWave + '.</b></div>') +
-        (ui.placing ? '<div class="hint">' + T.ui.hintPlace + '</div>' : '');
+        (ui.placing ? '<div class="hint">' + (ui.touch ? T.ui.hintPlaceTouch : T.ui.hintPlace) + '</div>' : '');
     } else if (info.mode === 'item') {
       sig = 'item' + info.key;
       if (sig === info.sig) return;
@@ -143,20 +143,20 @@
     } else if (info.mode === 'vaccine') {
       sig = 'vac' + g.atp + g.wave + JSON.stringify(g.vaccine);
       if (sig === info.sig) return;
-      html = '<div class="title">Vaccinate against... <span class="tag adaptive">' + R.vaccineCost + ' ATP</span></div>' +
+      html = '<div class="title">Vaccinate against... <span class="tag adaptive">' + R.vaccineCost + ' ATP</span></div><div class="picks">' +
         CTD.ANTIGEN_ORDER.map(function (a) {
           var A = CTD.ANTIGENS[a];
           var active = CTD.Game.vaccineActive(g, a);
           var note = a === 'hiv' ? T.items.noHivVaccine : active ? 'protected through wave ' + g.vaccine[a] : '';
           return '<button class="pick" data-vac="' + a + '"' + (CTD.Game.canVaccinate(g, a) ? '' : ' disabled') + '>' +
             '<span class="dot" style="background:' + A.color + '"></span><span>' + A.name + (note ? '<br><small>' + note + '</small>' : '') + '</span></button>';
-        }).join('');
+        }).join('') + '</div>';
     } else {
       var spec = g.inWave ? CTD.Waves.get(g.mode, g.wave, g.seed) : CTD.Game.nextWaveSpec(g);
-      sig = 'wave' + g.wave + g.inWave;
+      sig = 'wave' + g.wave + g.inWave + ui.touch;
       if (sig !== info.sig) {
         html = '<div class="title">' + (g.inWave ? 'Wave ' + g.wave + ' <span id="left"></span>' : T.ui.nextWave + ': ' + (g.wave + 1)) + '</div>' +
-          previewHtml(spec) + '<div class="hint">' + T.ui.hintIdle + '</div>';
+          previewHtml(spec) + '<div class="hint">' + (ui.touch ? T.ui.hintIdleTouch : T.ui.hintIdle) + '</div>';
       }
     }
     if (html !== undefined) {
@@ -223,6 +223,7 @@
     }
     setDyn(el, 'top', html);
     html = '<div class="upgrades">';
+    if (t.def.consumable) html += '<div class="status">' + T.ui.singleUse + '</div><div>' + tx.desc + '</div>';
     t.def.upgrades.forEach(function (u, i) {
       var ut = T.upgrades[t.type][u.key];
       var cost = CTD.Towers.upgradeCost(t, i);
@@ -298,7 +299,7 @@
     if (start.textContent !== label) start.textContent = label;
     start.disabled = g.inWave || g.over;
 
-    setText('btn-speed', 'Speed ' + ui.speed + 'x');
+    setText('btn-speed', (ui.layout === 'land' ? '' : 'Speed ') + ui.speed + 'x');
     setText('btn-pause', ui.paused ? 'Resume' : 'Pause');
     $('btn-pause').classList.toggle('active', ui.paused);
     setText('btn-sound', CTD.Sound.on ? 'Sound on' : 'Sound off');

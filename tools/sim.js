@@ -114,16 +114,16 @@ function check(label, ok) {
 const innate = [
   { place: 'macrophage', d: 330, side: 1, name: 'm1' },
   { place: 'macrophage', d: 520, side: -1, name: 'm2' },
-  { place: 'neutrophil', d: 760, side: 1, name: 'n1' },
+  { place: 'macrophage', d: 760, side: 1, name: 'n1' },
   { place: 'nk', d: 980, side: -1, name: 'k1' },
   { up: 'm1', track: 0 }, { up: 'm2', track: 2 },
   { place: 'macrophage', d: 1150, side: 1, name: 'm3' },
-  { place: 'neutrophil', d: 1400, side: -1, name: 'n2' },
+  { place: 'macrophage', d: 1400, side: -1, name: 'n2' },
   { up: 'm1', track: 2 }, { up: 'm2', track: 0 }, { up: 'n1', track: 0 },
   { place: 'macrophage', d: 1650, side: 1, name: 'm4' },
   { place: 'nk', d: 1500, side: 1, name: 'k2' },
   { up: 'm3', track: 0 }, { up: 'm3', track: 2 }, { up: 'n1', track: 2 }, { up: 'k1', track: 0 },
-  { place: 'neutrophil', d: 1900, side: 1, name: 'n3' },
+  { place: 'macrophage', d: 1900, side: 1, name: 'n3' },
   { place: 'macrophage', d: 2100, side: -1, name: 'm5' },
   { up: 'm1', track: 0 }, { up: 'm2', track: 0 }, { up: 'm4', track: 0 }, { up: 'm4', track: 2 },
   { up: 'n2', track: 0 }, { up: 'n2', track: 2 }, { up: 'n1', track: 3 }, { up: 'm5', track: 0 },
@@ -136,7 +136,7 @@ function chain(distHelper, distEffector) {
   return [
     { place: 'macrophage', d: 330, side: 1, name: 'm1' },
     { place: 'macrophage', d: 520, side: -1, name: 'm2' },
-    { place: 'neutrophil', d: 760, side: 1, name: 'n1' },
+    { place: 'macrophage', d: 760, side: 1, name: 'n1' },
     { place: 'nk', d: 980, side: -1, name: 'k1' },
     { up: 'm1', track: 0 },
     { place: 'dc', d: 430, side: -1, name: 'dc1' },
@@ -152,7 +152,7 @@ function chain(distHelper, distEffector) {
     { place: 'bcell', by: 'h2', dist: distEffector, name: 'b3' },
     { place: 'killerT', by: 'h2', dist: distEffector, name: 'c2' },
     { up: 'b1', track: 2 }, { up: 'b2', track: 0 }, { up: 'm3', track: 0 },
-    { place: 'neutrophil', d: 1900, side: 1, name: 'n2' },
+    { place: 'macrophage', d: 1900, side: 1, name: 'n2' },
     { up: 'b3', track: 0 }, { up: 'b3', track: 2 }, { up: 'c1', track: 0 }, { up: 'h1', track: 1 },
     { place: 'macrophage', d: 1650, side: 1, name: 'm4' }, { up: 'm4', track: 0 },
     { place: 'nk', d: 1750, side: -1, name: 'k2' },
@@ -215,6 +215,44 @@ const byNeutrophil = oneCellTest('neutrophil');
 const byNk = oneCellTest('nk');
 check('killed by neutrophils -> bursts (' + byNeutrophil.bursts + ')', byNeutrophil.bursts === 1 && byNeutrophil.clean === 0);
 check('killed by NK cells -> clean, no burst (' + byNk.clean + ' clean)', byNk.bursts === 0 && byNk.clean === 1);
+
+// --- neutrophils are single use
+console.log('\nNeutrophil: single use');
+(function () {
+  const g = Game.create({ seed: 4 });
+  const s = spotByPath(g, 'neutrophil', 600, 1);
+  const before = g.atp;
+  Game.place(g, 'neutrophil', s.x, s.y);
+  check('neutrophil is cheap (' + (before - g.atp) + ' ATP) and has no upgrades', before - g.atp <= 50 && CTD.TOWERS.neutrophil.upgrades.length === 0);
+  g.inWave = true;
+  g.queue = [{ t: 9999, type: 'common' }];
+  for (let i = 0; i < 4; i++) Enemies.spawn(g, 'common', 560 + i * 14, { hpMul: 1 });
+  let nets = 0;
+  for (let i = 0; i < 60 * 15; i++) {
+    Game.step(g, DT);
+    g.events.forEach((e) => { if (e.type === 'net') nets++; });
+    g.events.length = 0;
+  }
+  check('it bursts exactly once (' + nets + ') and stops the group (' + (g.stats.kills.neutrophil || 0) + ' of 4)', nets === 1 && g.stats.kills.neutrophil >= 3);
+  check('it does not come back: no neutrophil left on the field', g.towers.length === 0 && g.units.length === 0);
+
+  // target disappears before it gets there: it walks home and can be used later
+  const g2 = Game.create({ seed: 4 });
+  const n = Game.place(g2, 'neutrophil', s.x, s.y);
+  g2.inWave = true;
+  g2.queue = [{ t: 9999, type: 'common' }];
+  const prey = Enemies.spawn(g2, 'common', 600, { hpMul: 1 });
+  for (let i = 0; i < 12; i++) Game.step(g2, DT);
+  const left = g2.units.length === 1 && !g2.towers.includes(n);
+  prey.dead = true;
+  let nets2 = 0;
+  for (let i = 0; i < 60 * 4; i++) {
+    Game.step(g2, DT);
+    g2.events.forEach((e) => { if (e.type === 'net') nets2++; });
+    g2.events.length = 0;
+  }
+  check('a wasted charge is not lost: it returns to its post unused', left && nets2 === 0 && g2.towers.includes(n) && !n.dead);
+})();
 
 // --- HIV kills helper T-cells and that cuts B cell output
 console.log('\nHIV and helper T-cells');

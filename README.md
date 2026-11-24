@@ -13,7 +13,9 @@ To share it with a class, upload the whole folder to any static host (GitHub Pag
 - **Class Mode**: 15 scripted waves, about 20 minutes. Briefing cards introduce each new idea.
 - **Freeplay**: endless generated waves with every cell unlocked.
 
-Controls: click a cell in the shop, then click the tissue to place it (hold Shift to place several). Click a placed cell to upgrade or sell it. Space starts a wave or pauses; Esc cancels; 1–7 pick a cell. Touch screens work.
+Controls: click a cell in the shop, then click the tissue to place it (hold Shift to place several). Click a placed cell to upgrade or sell it. Space starts a wave or pauses; Esc cancels; 1–7 pick a cell. Touch screens work: tap instead of click.
+
+On phones and small windows the game switches to a compact layout (playfield on top in portrait, on the left in landscape) so the text stays readable. The breakpoints and sizes are at the top of `fit()` in `js/main.js`; the styles are the `body.compact` rules at the end of `css/style.css`.
 
 ## Change the wording or the balance
 
